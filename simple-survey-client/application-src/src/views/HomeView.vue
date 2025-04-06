@@ -100,19 +100,54 @@
 
     <section v-if="currentNavButton === 'Responses'">
       <h1>Survey responses</h1>
+
+      <a-input-search
+        placeholder="Enter email address..."
+        enter-button="Search"
+        size="large"
+        :loading="searchLoading"
+        @search="onSearch"
+      />
+
+      <a-table
+        :columns="columns"
+        :data-source="data?.data.results"
+        :pagination="pagination"
+        :loading="loading"
+        :expand-column-width="100"
+        @change="handleTableChange"
+      >
+        <template #bodyCell="{ column, text }">
+          <template v-if="column.dataIndex === 'name'">{{ text.first }} {{ text.last }}</template>
+        </template>
+
+        <template #expandedRowRender="{ record }">
+          <p style="margin: 0">
+            {{ record.name }}
+          </p>
+        </template>
+
+        <template #expandColumnTitle>
+          <span style="color: red">View</span>
+        </template>
+      </a-table>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import type { UploadChangeParam } from 'ant-design-vue'
 import { message } from 'ant-design-vue'
 import { UploadOutlined } from '@ant-design/icons-vue'
+import { usePagination } from 'vue-request'
+import axios from 'axios'
 
 const navButtons = ref(['Questions', 'Responses'])
 const currentNavButton = ref('Questions')
 const currentStep = ref(0)
+
+const searchLoading = ref(false)
 
 interface Form {
   full_name: string
@@ -270,6 +305,75 @@ const handleChange = (info: UploadChangeParam) => {
   } else if (info.file.status === 'error') {
     message.error(`${info.file.name} file upload failed.`)
   }
+}
+
+const columns = [
+  {
+    title: 'Name',
+    dataIndex: 'name',
+    sorter: true,
+    width: '50%',
+  },
+  {
+    title: 'Email',
+    dataIndex: 'email',
+  },
+]
+
+type APIParams = {
+  results: number
+  page?: number
+  sortField?: string
+  sortOrder?: number
+  [key: string]: any
+}
+
+type APIResult = {
+  results: {
+    gender: 'female' | 'male'
+    name: string
+    email: string
+  }[]
+}
+
+const queryData = (params: APIParams) => {
+  return axios.get<APIResult>('https://randomuser.me/api?noinfo', { params })
+}
+
+const { data, current, loading, pageSize, changePagination } = usePagination(queryData, {
+  defaultParams: [
+    {
+      results: 5,
+    },
+  ],
+  pagination: {
+    currentKey: 'page',
+    pageSizeKey: 'results',
+  },
+})
+
+const pagination = computed(() => ({
+  total: 20,
+  current: current.value,
+  pageSize: pageSize.value,
+}))
+
+const handleTableChange = (
+  pag: { pageSize: number; current: number },
+  filters: any,
+  sorter: any,
+) => {
+  changePagination(pag.current, pag.pageSize)
+}
+
+const onSearch = (emailAddress: string) => {
+  searchLoading.value = true
+
+  console.log('Search: ', emailAddress)
+
+  setTimeout(() => {
+    searchLoading.value = false
+  }, 3000)
 }
 </script>
 
