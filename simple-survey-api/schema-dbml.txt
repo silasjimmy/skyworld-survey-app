@@ -1,0 +1,43 @@
+// Use DBML to define your database structure
+// Docs: https://dbml.dbdiagram.io/docs
+
+Table question {
+  id integer [primary key]
+  name string [not null]
+  type string [not null]
+  required bool [not null]
+  text string [not null]
+  description string
+}
+
+Table response {
+  id integer [primary key]
+  full_name string [not null]
+  email_address string [not null]
+  description string [not null]
+  gender string [not null]
+  date_responded timestamp [not null]
+}
+
+Table option {
+  id integer [primary key]
+  label string [not null]
+  value string [not null]
+  question_id integer
+  response_id integer [not null]
+}
+
+Table certificate {
+  id integer [primary key]
+  name string [not null]
+  url string [not null]
+  response_id integer [not null]
+}
+
+
+Ref: question.id < option.question_id
+
+Ref response_programming_stack: response.id < option.response_id
+
+Ref response_certificate: response.id < certificate.response_id
+

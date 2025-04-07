@@ -1,37 +1,46 @@
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, String, Integer, Text, Boolean, Enum, DateTime  # create_engine
-from sqlalchemy.orm import relationship
-import enum
+from sqlalchemy import Column, String, Integer, Text, Boolean, Enum, DateTime, ForeignKey
+from sqlalchemy.orm import relationship, mapped_column
 from datetime import datetime, timezone
+from utils import GenderOptions
+from flask_sqlalchemy import SQLAlchemy
 
 # SQLAlchemy database instance
-db = SQLAlchemy()
+database = SQLAlchemy()
 
 database_path = "postgresql://{}:{}@{}/{}".format(
     'postgres', 'silas.jimmy.17', 'localhost:5432', 'sky_survey_db')
 
 
-class GenderOptions(enum.Enum):
+def setup_database(app: object, database_path: str = database_path):
     """
-    Gender options definition
+    Connects the database to the Flask application.
+
+    :param app: Flask application context
+    :param database_path: Path to the database
     """
+    app.config["SQLALCHEMY_DATABASE_URI"] = database_path
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    database.app = app
+    database.init_app(app)
+    database.create_all()
 
-    male = 'MALE'
-    female = 'FEMALE'
-    other = 'OTHER'
+
+#############
+### Models###
+#############
 
 
-class Question(db.Model):
+class Question(database.Model):
     """
     A persistent question entity, extends the base SQLAlchemy Model
     """
     __tablename_ = 'question'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    type = Column(String)
-    required = Column(Boolean)
-    text = Column(String)
+    name = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    required = Column(Boolean, nullable=False)
+    text = Column(String, nullable=False)
     description = Column(String)
     options = relationship("Option")
 
@@ -46,8 +55,8 @@ class Question(db.Model):
         """
         Saves the question information to the database
         """
-        db.session.add(self)
-        db.session.commit()
+        database.session.add(self)
+        database.session.commit()
 
     def format(self):
         """
@@ -63,18 +72,18 @@ class Question(db.Model):
         }
 
 
-class Response(db.Model):
+class Response(database.Model):
     """
     A persistent response entity, extends the base SQLAlchemy Model
     """
     __tablename_ = 'response'
 
     id = Column(Integer, primary_key=True)
-    full_name = Column(String)
-    email_address = Column(String, unique=True)
-    description = Column(Text)
+    full_name = Column(String, nullable=False)
+    email_address = Column(String, unique=True, nullable=False) # Enforce `unique` to avoid multiple entries
+    description = Column(Text, nullable=False)
+    gender = Column(String, Enum(GenderOptions), nullable=False)
     date_responded = Column(DateTime, default=datetime.now(timezone.utc))
-    gender = Column(String, Enum(GenderOptions))
     programming_stack = relationship("Option")
     certificates = relationship("Certificate")
 
@@ -88,8 +97,8 @@ class Response(db.Model):
         """
         Saves the response information to the database
         """
-        db.session.add(self)
-        db.session.commit()
+        database.session.add(self)
+        database.session.commit()
 
     def format(self):
         """
@@ -105,15 +114,17 @@ class Response(db.Model):
         }
 
 
-class Option(db.Model):
+class Option(database.Model):
     """
     A persistent option entity, extends the base SQLAlchemy Model
     """
     __tablename__ = 'option'
 
     id = Column(Integer, primary_key=True)
-    label = Column(String)
-    value = Column(String)
+    label = Column(String, nullable=False)
+    value = Column(String, nullable=False)
+    question_id = mapped_column(ForeignKey("question.id"))
+    response_id = mapped_column(ForeignKey("response.id"))
 
     def __init__(self, label: str, value: str):
         self.label = label
@@ -123,8 +134,8 @@ class Option(db.Model):
         """
         Saves the option information to the database
         """
-        db.session.add(self)
-        db.session.commit()
+        database.session.add(self)
+        database.session.commit()
 
     def format(self):
         """
@@ -137,15 +148,16 @@ class Option(db.Model):
         }
 
 
-class Certificate(db.Model):
+class Certificate(database.Model):
     """
     A persistent certificate entity, extends the base SQLAlchemy Model
     """
     __tablename__ = 'certificate'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    url = Column(String)
+    name = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    response_id = mapped_column(ForeignKey("response.id"))
 
     def __init__(self, name: str, url: str):
         self.name = name
@@ -155,8 +167,8 @@ class Certificate(db.Model):
         """
         Saves the certificate information to the database
         """
-        db.session.add(self)
-        db.session.commit()
+        database.session.add(self)
+        database.session.commit()
 
     def format(self):
         """
@@ -167,17 +179,3 @@ class Certificate(db.Model):
             'name': self.name,
             'url': self.url
         }
-
-
-def setup_database(app: object, database_path: str = ''):
-    """
-    Connects the database to the Flask application.
-
-    :param app: Flask application context
-    :param database_path: Path to the database
-    """
-    app.config["SQLALCHEMY_DATABASE_URI"] = database_path
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    db.app = app
-    db.init_app(app)
-    db.create_all()
