@@ -3,15 +3,24 @@ from sqlalchemy.orm import relationship, mapped_column
 from datetime import datetime, timezone
 from utils import GenderOptions
 from flask_sqlalchemy import SQLAlchemy
+from flask import Flask
+from sqlalchemy.dialects.postgresql import JSON
+from typing import Any
+import os
 
 # SQLAlchemy database instance
 database = SQLAlchemy()
 
-database_path = "postgresql://{}:{}@{}/{}".format(
-    'postgres', 'silas.jimmy.17', 'localhost:5432', 'sky_survey_db')
+database_path = "postgresql://{}:{}@{}:{}/{}".format(
+    os.environ.get('DATABASE_USERNAME'),
+    os.environ.get('DATABASE_PASSWORD'),
+    os.environ.get('DATABASE_HOST'),
+    os.environ.get('DATABASE_PORT'),
+    os.environ.get('DATABASE_NAME'),
+)
 
 
-def setup_database(app: object, database_path: str = database_path):
+def setup_database(app: Flask, database_path: str = database_path):
     """
     Connects the database to the Flask application.
 
@@ -42,14 +51,19 @@ class Question(database.Model):
     required = Column(Boolean, nullable=False)
     text = Column(String, nullable=False)
     description = Column(String)
-    options = relationship("Option")
+    options = Column(JSON)
 
-    def __init__(self, name: str, type: str, required: bool, text: str, description: str):
+    def __init__(self, name: str, type: str, required: bool, text: str,
+                 description: str = None, options: Any = None):
+        """
+        Constructor
+        """
         self.name = name
         self.type = type
         self.required = required
         self.text = text
         self.description = description
+        self.options = options
 
     def insert(self):
         """
@@ -60,7 +74,7 @@ class Question(database.Model):
 
     def format(self):
         """
-        Object representation of the Question model
+        Object representation of the Question entity
         """
         return {
             'id': self.id,
@@ -68,7 +82,8 @@ class Question(database.Model):
             'type': self.type,
             'required': self.required,
             'text': self.text,
-            'description': self.description
+            'description': self.description,
+            'options': self.options
         }
 
 
@@ -80,18 +95,23 @@ class Response(database.Model):
 
     id = Column(Integer, primary_key=True)
     full_name = Column(String, nullable=False)
-    email_address = Column(String, unique=True, nullable=False) # Enforce `unique` to avoid multiple entries
-    description = Column(Text, nullable=False)
+    email_address = Column(String, nullable=False)
+    description = Column(String, nullable=False)
     gender = Column(String, Enum(GenderOptions), nullable=False)
+    programming_stack = Column(String, nullable=False)
     date_responded = Column(DateTime, default=datetime.now(timezone.utc))
-    programming_stack = relationship("Option")
     certificates = relationship("Certificate")
 
-    def __init__(self, full_name: str, email_address: str, description: str, gender: str):
+    def __init__(self, full_name: str, email_address: str, description: str,
+                 gender: str, programming_stack: str):
+        """
+        Constructor
+        """
         self.full_name = full_name
         self.email_address = email_address
         self.description = description
         self.gender = gender
+        self.programming_stack = programming_stack
 
     def insert(self):
         """
@@ -102,49 +122,16 @@ class Response(database.Model):
 
     def format(self):
         """
-        Object representation of the Response model
+        Object representation of the Response entity
         """
         return {
             'id': self.id,
             'full_name': self.full_name,
             'email_address': self.email_address,
             'description': self.description,
-            'date_responded': self.date_responded,
-            'gender': self.gender
-        }
-
-
-class Option(database.Model):
-    """
-    A persistent option entity, extends the base SQLAlchemy Model
-    """
-    __tablename__ = 'option'
-
-    id = Column(Integer, primary_key=True)
-    label = Column(String, nullable=False)
-    value = Column(String, nullable=False)
-    question_id = mapped_column(ForeignKey("question.id"))
-    response_id = mapped_column(ForeignKey("response.id"))
-
-    def __init__(self, label: str, value: str):
-        self.label = label
-        self.value = value
-
-    def insert(self):
-        """
-        Saves the option information to the database
-        """
-        database.session.add(self)
-        database.session.commit()
-
-    def format(self):
-        """
-        Object representation of the Option model
-        """
-        return {
-            'id': self.id,
-            'label': self.label,
-            'value': self.value
+            'gender': self.gender,
+            'programming_stack': self.programming_stack,
+            'date_responded': self.date_responded
         }
 
 

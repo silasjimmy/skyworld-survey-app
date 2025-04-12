@@ -13,3 +13,10 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Migrations
+migrations
+
+# Environment variables
+.env
+.flaskenv

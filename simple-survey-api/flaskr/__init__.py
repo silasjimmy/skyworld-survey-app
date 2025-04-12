@@ -1,7 +1,12 @@
 from flask import Flask, jsonify, abort, request
-from database.models import setup_database, Question, Response, Certificate
+from database.models import database, setup_database, Question, Response, Certificate
 from flask_cors import CORS
 from flask_swagger import swagger
+from flask_migrate import Migrate
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 def create_app(test_config=None):
@@ -12,6 +17,8 @@ def create_app(test_config=None):
 
     # Set up cors and allowed * origins
     CORS(app, resources={r"/api/*": {'origins': "*"}})
+
+    Migrate(app, database)
 
     # Access the after request to set Access-Control-Allow
     @app.after_request
@@ -66,7 +73,7 @@ def create_app(test_config=None):
         except Exception as e:
             abort(422)
 
-    @app.route('/api/questions/responses', methods=['GET'])
+    @app.route('/api/questions/responses')
     def get_responses():
         """
         Get a list of all survey responses
@@ -90,7 +97,7 @@ def create_app(test_config=None):
         except Exception as e:
             abort(422)
 
-    @app.route('/api/questions/responses/certificates/<int:certificate_id>', methods=['GET'])
+    @app.route('/api/questions/responses/certificates/<int:certificate_id>')
     def get_certificate(certificate_id):
         """
         Get a survey response certificate by id
@@ -130,7 +137,7 @@ def create_app(test_config=None):
             # response_files = request.files
             # print(response_files)
 
-            new_response = Response(**response_data)
+            new_response = Response(**response_data.to_dict())
 
             return jsonify({
                 "status": 200,
