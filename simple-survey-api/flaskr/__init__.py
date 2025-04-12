@@ -120,6 +120,33 @@ def create_app(test_config=None):
         except Exception as e:
             abort(422)
 
+    @app.route('/api/questions/question', methods=['PUT'])
+    def add_question():
+        """
+        Save a survey question
+        ---
+        tags:
+          - question
+        responses:
+          200:
+            description: question uploaded successfully
+        """
+        try:
+            question_data = request.form.to_dict()
+            question_data['required'] = bool(question_data.get('required'))
+
+            new_question = Question(**question_data)
+            new_question.insert()
+
+            return jsonify({
+                "status": 200,
+                "success": True,
+                "question": new_question.format()
+            })
+        except Exception as e:
+            print(e)
+            abort(422)
+
     @app.route('/api/questions/responses', methods=['PUT'])
     def add_response():
         """
