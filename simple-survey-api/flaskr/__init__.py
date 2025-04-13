@@ -1,9 +1,13 @@
-from flask import Flask, jsonify, abort, request
+from flask import Flask, jsonify, abort, request, send_from_directory
 from database.models import database, setup_database, Question, Response, Certificate, Option
 from flask_cors import CORS
 from flask_swagger import swagger
 from flask_migrate import Migrate
 from dotenv import load_dotenv
+from utils import UPLOAD_FOLDER, allowed_file
+from werkzeug.utils import secure_filename
+import os
+from typing import List, Dict
 
 # Load environment variables
 load_dotenv()
@@ -11,13 +15,24 @@ load_dotenv()
 
 def create_app(test_config=None):
     app = Flask(__name__)
+    app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+    app.config['MAX_CONTENT_LENGTH'] = 1 * 1000 * \
+        1000  # Maximum size of 1MB per file
 
+    # Create the static/certificates folder if it does not exists
+    try:
+        os.makedirs(UPLOAD_FOLDER)
+    except OSError:
+        pass
+
+    # Initialize the database
     with app.app_context():
         setup_database(app)
 
     # Set up cors and allowed * origins
     CORS(app, resources={r"/api/*": {'origins': "*"}})
 
+    # Set up migrations
     Migrate(app, database)
 
     # Access the after request to set Access-Control-Allow
@@ -109,17 +124,18 @@ def create_app(test_config=None):
             description: certificate retrieved successfully
         """
         try:
-            certificate = Certificate.query.filter(
+            certificate: Certificate = Certificate.query.filter(
                 Certificate.id == certificate_id).one_or_none()
 
-            return jsonify({
-                "status": 200,
-                "success": True,
-                "certificate": certificate
-            })
+            if certificate:
+                return send_from_directory(app.config["UPLOAD_FOLDER"], certificate.name)
+            else:
+                abort(404)
         except Exception as e:
+            print(e)
             abort(422)
 
+    # Mark for deletion
     @app.route('/api/questions/question', methods=['PUT'])
     def add_question():
         """
@@ -165,6 +181,7 @@ def create_app(test_config=None):
             print(e)
             abort(422)
 
+    # Mark for deletion
     @app.route('/api/questions/options', methods=['PUT'])
     def add_option():
         """
@@ -202,13 +219,40 @@ def create_app(test_config=None):
           200:
             description: responses uploaded successfully
         """
+
+        # Abort if no certificates uploaded
+        if 'certificates' not in request.files:
+            abort(422)
+
+        uploaded_certificates = request.files.getlist('certificates')
+
+        # Check for empty files
+        if '' in [certificate.filename for certificate in uploaded_certificates]:
+            abort(404)
+
         try:
-            response_data = request.form
+            response_certificates: List[Dict[str, str]] = []
 
-            # response_files = request.files
-            # print(response_files)
+            # Save the uploaded certificates
+            for certificate in uploaded_certificates:
+                if certificate and allowed_file(certificate.filename):
+                    filename = secure_filename(certificate.filename)
+                    certificate.save(os.path.join(
+                        app.config['UPLOAD_FOLDER'], filename))
+                    response_certificates.append({
+                        'name': filename,
+                        'url': filename
+                    })
 
-            new_response = Response(**response_data.to_dict())
+            response_data = request.form.to_dict()
+
+            new_response = Response(**response_data)
+            new_response.certificates = [
+                Certificate(name=certificate.get('name'),
+                            url=certificate.get('url'))
+                for certificate in response_certificates]
+
+            new_response.insert()
 
             return jsonify({
                 "status": 200,
@@ -216,6 +260,7 @@ def create_app(test_config=None):
                 "response": new_response.format()
             })
         except Exception as e:
+            print(e)
             abort(422)
 
     # Error Handling

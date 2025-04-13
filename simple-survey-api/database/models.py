@@ -163,7 +163,8 @@ class Response(database.Model):
             'description': self.description,
             'gender': self.gender,
             'programming_stack': self.programming_stack,
-            'date_responded': self.date_responded
+            'date_responded': self.date_responded,
+            'certificates': [certificate.format() for certificate in self.certificates]
         }
 
 
