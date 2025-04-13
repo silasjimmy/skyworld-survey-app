@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, abort, request
-from database.models import database, setup_database, Question, Response, Certificate
+from database.models import database, setup_database, Question, Response, Certificate, Option
 from flask_cors import CORS
 from flask_swagger import swagger
 from flask_migrate import Migrate
@@ -133,6 +133,24 @@ def create_app(test_config=None):
         """
         try:
             question_data = request.form.to_dict()
+
+            if question_data.get('options'):
+                # Create a list of option ids from the provided string
+                question_options = question_data.get('options').split(',')
+
+                # Convert the string ids to integers
+                option_ids = [int(question_id)
+                              for question_id in question_options]
+
+                # Create Option entities from the generated ids
+                options = [Option.query.filter_by(
+                    id=option_id).one_or_none() for option_id in option_ids]
+
+                # Remove None values from the list, if any
+                question_data['options'] = list(
+                    filter(lambda o: o is not None, options))
+
+            # Convert the 'required' value to a boolean value
             question_data['required'] = bool(question_data.get('required'))
 
             new_question = Question(**question_data)
@@ -142,6 +160,32 @@ def create_app(test_config=None):
                 "status": 200,
                 "success": True,
                 "question": new_question.format()
+            })
+        except Exception as e:
+            print(e)
+            abort(422)
+
+    @app.route('/api/questions/options', methods=['PUT'])
+    def add_option():
+        """
+        Save a question option
+        ---
+        tags:
+          - option
+        responses:
+          200:
+            description: option uploaded successfully
+        """
+        try:
+            option_data = request.form.to_dict()
+
+            new_option = Option(**option_data)
+            new_option.insert()
+
+            return jsonify({
+                "status": 200,
+                "success": True,
+                "otion": new_option.format()
             })
         except Exception as e:
             print(e)

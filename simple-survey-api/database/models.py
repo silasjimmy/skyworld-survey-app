@@ -1,11 +1,10 @@
-from sqlalchemy import Column, String, Integer, Text, Boolean, Enum, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Boolean, Enum, DateTime, ForeignKey
 from sqlalchemy.orm import relationship, mapped_column
 from datetime import datetime, timezone
 from utils import GenderOptions
 from flask_sqlalchemy import SQLAlchemy
 from flask import Flask
-from sqlalchemy.dialects.postgresql import JSON
-from typing import Any
+from typing import List, Any
 import os
 
 # SQLAlchemy database instance
@@ -51,10 +50,10 @@ class Question(database.Model):
     required = Column(Boolean, nullable=False)
     text = Column(String, nullable=False)
     description = Column(String)
-    options = Column(JSON)
+    options = relationship("Option")
 
     def __init__(self, name: str, type: str, required: bool, text: str,
-                 description: str = None, options: Any = None):
+                 description: str = None, options: List[Any] = []):
         """
         Constructor
         """
@@ -83,7 +82,40 @@ class Question(database.Model):
             'required': self.required,
             'text': self.text,
             'description': self.description,
-            'options': self.options
+            'options': [option.format() for option in self.options]
+        }
+
+
+class Option(database.Model):
+    """
+    A persistent option entity, extends the base SQLAlchemy Model
+    """
+    __tablename__ = 'option'
+
+    id = Column(Integer, primary_key=True)
+    label = Column(String, nullable=False)
+    value = Column(String, nullable=False)
+    question_id = mapped_column(ForeignKey("question.id"))
+
+    def __init__(self, label: str, value: str):
+        self.label = label
+        self.value = value
+
+    def insert(self):
+        """
+        Saves the option information to the database
+        """
+        database.session.add(self)
+        database.session.commit()
+
+    def format(self):
+        """
+        Object representation of the Option model
+        """
+        return {
+            'id': self.id,
+            'label': self.label,
+            'value': self.value
         }
 
 
@@ -159,7 +191,7 @@ class Certificate(database.Model):
 
     def format(self):
         """
-        Object representation of the Option model
+        Object representation of the Certificate entity
         """
         return {
             'id': self.id,
