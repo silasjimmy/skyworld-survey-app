@@ -12,6 +12,8 @@ from typing import List, Dict
 # Load environment variables
 load_dotenv()
 
+QUESTIONS_PER_PAGE = 10
+
 
 def create_app(test_config=None):
     app = Flask(__name__)
@@ -91,7 +93,11 @@ def create_app(test_config=None):
     @app.route('/api/questions/responses')
     def get_responses():
         """
-        Get a list of all survey responses
+        Get a list of all survey responses.
+
+        Arguments:
+            page (int): the page number to paginate the responses against, default 1
+            email_address (str): the email address to filter the responses with
         ---
         tags:
           - responses
@@ -100,9 +106,19 @@ def create_app(test_config=None):
             description: responses retrieved successfully
         """
         try:
-            responses_query = Response.query.all()
+            email_address = request.args.get('email_address')
+            responses_query = []
 
-            responses = [response.format() for response in responses_query]
+            if email_address:
+                if email_address == '':
+                    responses_query = Response.query.all()
+                else:
+                    responses_query = Response.query.filter_by(
+                        email_address=email_address).all()
+            else:
+                responses_query = Response.query.all()
+
+            responses = paginate_responses(request, responses_query)
 
             return jsonify({
                 "status": 200,
@@ -131,79 +147,6 @@ def create_app(test_config=None):
                 return send_from_directory(app.config["UPLOAD_FOLDER"], certificate.name)
             else:
                 abort(404)
-        except Exception as e:
-            print(e)
-            abort(422)
-
-    # Mark for deletion
-    @app.route('/api/questions/question', methods=['PUT'])
-    def add_question():
-        """
-        Save a survey question
-        ---
-        tags:
-          - question
-        responses:
-          200:
-            description: question uploaded successfully
-        """
-        try:
-            question_data = request.form.to_dict()
-
-            if question_data.get('options'):
-                # Create a list of option ids from the provided string
-                question_options = question_data.get('options').split(',')
-
-                # Convert the string ids to integers
-                option_ids = [int(question_id)
-                              for question_id in question_options]
-
-                # Create Option entities from the generated ids
-                options = [Option.query.filter_by(
-                    id=option_id).one_or_none() for option_id in option_ids]
-
-                # Remove None values from the list, if any
-                question_data['options'] = list(
-                    filter(lambda o: o is not None, options))
-
-            # Convert the 'required' value to a boolean value
-            question_data['required'] = bool(question_data.get('required'))
-
-            new_question = Question(**question_data)
-            new_question.insert()
-
-            return jsonify({
-                "status": 200,
-                "success": True,
-                "question": new_question.format()
-            })
-        except Exception as e:
-            print(e)
-            abort(422)
-
-    # Mark for deletion
-    @app.route('/api/questions/options', methods=['PUT'])
-    def add_option():
-        """
-        Save a question option
-        ---
-        tags:
-          - option
-        responses:
-          200:
-            description: option uploaded successfully
-        """
-        try:
-            option_data = request.form.to_dict()
-
-            new_option = Option(**option_data)
-            new_option.insert()
-
-            return jsonify({
-                "status": 200,
-                "success": True,
-                "otion": new_option.format()
-            })
         except Exception as e:
             print(e)
             abort(422)
@@ -300,4 +243,34 @@ def create_app(test_config=None):
             "message": "record not found"
         }), 404
 
+    @app.errorhandler(413)
+    def file_too_large(error):
+        return jsonify({
+            "success": False,
+            "error": 413,
+            "message": "certificate submitted exceeds the limit size of 1MB"
+        }), 413
+
     return app
+
+
+def paginate_responses(request, selection: List[Response]):
+    '''
+    Paginates the responses to 10 responses per page.
+
+    Parameters:
+        request (obj): Request object
+        selection (list): List of responses
+
+    Returns:
+        current_responses (list): List of paginated responses
+    '''
+
+    page = request.args.get('page', 1, type=int)
+    start = (page - 1) * QUESTIONS_PER_PAGE
+    end = start + QUESTIONS_PER_PAGE
+
+    formatted_responses = [response.format() for response in selection]
+    current_responses = formatted_responses[start:end]
+
+    return current_responses

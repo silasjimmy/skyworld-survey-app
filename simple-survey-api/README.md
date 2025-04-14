@@ -7,8 +7,10 @@
 
 ## Project Setup
 
+### Development
+
 1. Create a Postgres database locally and name it `sky_survey_db`
-2. Create a _.env_ file in the root directory and add the following environment variables:
+2. Create a `.env` file in the root directory and add the following environment variables:
 
 ```
 DATABASE_USERNAME=<your_database_username>
@@ -20,7 +22,11 @@ DATABASE_PORT=5432
 
 3. Create a virtual environment and activate it
 
-4. Install the dependencies by running `pip install -r requirements.txt`
+4. Install the dependencies by running
+
+```sh
+pip install -r requirements.txt
+```
 
 5. Initialize the database by running the following commands:
 
@@ -30,15 +36,23 @@ flask db migrate
 flask db upgrade
 ```
 
-6. On the root directory, create a new file and name it _.flaskenv_. Add the following flask environment variables to the file:
+6. On the root directory, create a new file and name it `.flaskenv`. Add the following flask environment variables to the file:
 
 ```
 FLASK_APP=flaskr
 FLASK_DEBUG=True
 ```
 
-7. Run the following command `flask run` to start the server.
+7. Run the following command to start the server:
 
-## Development
+```sh
+flask run
+```
 
-- Generate SQL script: `pg_dump -U postgres -d sky_survey_db --password -f sky_survey_db.sql`
+### SQL Script Generation
+
+Run the following command in the terminal (Linux distributions)
+
+```sh
+pg_dump -U postgres -d sky_survey_db --password -f sky_survey_db.sql
+```

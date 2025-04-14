@@ -8,7 +8,13 @@ Table question {
   required bool [not null]
   text string [not null]
   description string
-  options json
+}
+
+Table option {
+  id integer [primary key]
+  label string [not null]
+  value string [not null]
+  question_id integer [not null]
 }
 
 Table response {
@@ -28,6 +34,6 @@ Table certificate {
   response_id integer [not null]
 }
 
+Ref question_options: question.id < option.question_id
 
 Ref response_certificate: response.id < certificate.response_id
-
