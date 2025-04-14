@@ -120,7 +120,7 @@
           </div>
         </div>
 
-        <div class="vertical-spacing">
+        <div class="vertical-spacing flex-horizontal">
           <a-button v-if="currentStep > 0" @click="currentStep--">Previous</a-button>
 
           <a-button v-if="currentStep < questions.length" type="primary" @click="validateInput">
@@ -148,7 +148,8 @@ import axios from 'axios'
 import { storeToRefs } from 'pinia'
 import { onMounted, reactive, ref, watch } from 'vue'
 import type { FormInstance, UploadProps } from 'ant-design-vue'
-import { UploadOutlined } from '@ant-design/icons-vue';
+import { UploadOutlined } from '@ant-design/icons-vue'
+import { useResponseStore } from '@/stores/response'
 
 interface Form {
   full_name: string
@@ -161,8 +162,10 @@ interface Form {
 
 const apiEndpoint = import.meta.env.VITE_API_ENDPOINT
 const questionsStore = useQuestionStore()
+const responsesStore = useResponseStore()
 
 const { questions } = storeToRefs(questionsStore)
+const { responses } = storeToRefs(responsesStore)
 const questionsLoading = ref(false)
 const submitLoading = ref(false)
 const currentStep = ref(0)
@@ -274,9 +277,7 @@ function submitResponse() {
     .then((res) => {
       message.success('Your response has been saved!')
 
-      const userResponse = res.data.response
-
-      console.log(userResponse)
+      console.log(res)
     })
     .catch((error) => {
       message.error('Something went wrong! Please try again')
@@ -312,5 +313,10 @@ function submitFailed(error: any): void {
   content: '*';
   color: red;
   margin-right: 4px;
+}
+
+.flex-horizontal {
+  display: flex;
+  justify-content: space-between;
 }
 </style>

@@ -16,6 +16,6 @@ import { RouterView } from 'vue-router'
 }
 
 .spacing {
-  margin: 10px;
+  padding: 10px;
 }
 </style>

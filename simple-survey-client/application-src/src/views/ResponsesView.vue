@@ -36,18 +36,15 @@ const { responses } = storeToRefs(responseStore)
 const responsesLoading = ref(false)
 
 const columns = [
-  { title: 'Full name', dataIndex: 'full_name', key: 'full_name' },
+  {
+    title: 'Full name',
+    dataIndex: 'full_name',
+    key: 'full_name',
+  },
   {
     title: 'Email address',
     dataIndex: 'email_address',
     key: 'email_address',
-    filters: [
-      {
-        text: 'jimmysilas17@gmail.com',
-        value: 'jimmysilas17@gmail.com',
-      },
-    ],
-    onFilter: (value: string, record: any) => record.email_address.indexOf(value) === 0,
   },
   {
     title: 'Action',
@@ -56,21 +53,19 @@ const columns = [
 ]
 
 onMounted(async () => {
-  if (responses.value.length === 0) {
-    responsesLoading.value = true
+  responsesLoading.value = true
 
-    const responsesRes = await responseStore.getResponses()
+  const responsesRes = await responseStore.getResponses()
 
-    if (responsesRes.status === 200) {
-      responseStore.$patch({
-        responses: responsesRes.responses,
-      })
-    } else {
-      message.error('Failed to fetch survey responses!')
-    }
+  if (responsesRes.status === 200) {
+    responseStore.$patch({
+      responses: responsesRes.responses,
+    })
+  } else {
+    message.error('Failed to fetch survey responses!')
+  }
 
-    responsesLoading.value = false
-  } else return
+  responsesLoading.value = false
 })
 </script>
 
