@@ -11,6 +11,16 @@
     </div>
 
     <div class="vertical-spacing">
+      <div class="vertical-spacing">
+        <a-input-search
+          v-model:value="searchValue"
+          placeholder="Filter by email address..."
+          enter-button="Search"
+          :loading="searchLoading"
+          @search="onSearch"
+        />
+      </div>
+
       <a-table :columns="columns" :data-source="responses">
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'action'">
@@ -27,6 +37,7 @@
 <script setup lang="ts">
 import { useResponseStore } from '@/stores/response'
 import { message } from 'ant-design-vue'
+import axios from 'axios'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
@@ -34,7 +45,9 @@ import { RouterLink } from 'vue-router'
 const responseStore = useResponseStore()
 const { responses } = storeToRefs(responseStore)
 const responsesLoading = ref(false)
-
+const searchValue = ref('')
+const searchLoading = ref(false)
+const apiEndpoint = import.meta.env.VITE_API_ENDPOINT
 const columns = [
   {
     title: 'Full name',
@@ -67,6 +80,24 @@ onMounted(async () => {
 
   responsesLoading.value = false
 })
+
+const onSearch = async () => {
+  searchLoading.value = true
+
+  axios
+    .get(`${apiEndpoint}/questions/responses?email_address=${searchValue.value}`)
+    .then((res) => {
+      responseStore.$patch({
+        responses: res.data.responses,
+      })
+    })
+    .catch(() => {
+      message.error('Something went wrong! Try again later')
+    })
+    .finally(() => {
+      searchLoading.value = false
+    })
+}
 </script>
 
 <style scoped></style>
