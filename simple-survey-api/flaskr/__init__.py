@@ -220,11 +220,15 @@ def create_app(test_config=None):
             description: responses uploaded successfully
         """
 
-        # Abort if no certificates uploaded
-        if 'certificates' not in request.files:
-            abort(422)
+        uploaded_certificates = None
 
-        uploaded_certificates = request.files.getlist('certificates')
+        # Check if any certificates have been uploaded
+        if 'certificates' in request.files:
+            uploaded_certificates = request.files.getlist('certificates')
+        elif 'certificates[]' in request.files:
+            uploaded_certificates = request.files.getlist('certificates[]')
+        else:
+            abort(422)
 
         # Check for empty files
         if '' in [certificate.filename for certificate in uploaded_certificates]:

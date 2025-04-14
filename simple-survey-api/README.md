@@ -1,11 +1,11 @@
-# Simple survey API
+# Simple Survey API
 
 ## Tools
 
 - [Flask](https://flask.palletsprojects.com/en/stable/)
 - [Postgres](https://www.postgresql.org/)
 
-## Setup
+## Project Setup
 
 1. Create a Postgres database locally and name it `sky_survey_db`
 2. Create a _.env_ file in the root directory and add the following environment variables:
@@ -24,7 +24,7 @@ DATABASE_PORT=5432
 
 5. Initialize the database by running the following commands:
 
-```
+```sh
 flask db init
 flask db migrate
 flask db upgrade
