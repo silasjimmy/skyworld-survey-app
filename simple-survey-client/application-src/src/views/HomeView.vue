@@ -11,90 +11,139 @@
     <a-segmented block v-model:value="currentNavButton" :options="navButtons" />
 
     <section v-if="currentNavButton === 'Questions'">
-      <h1>Survey questions</h1>
-      <span>marks required questions</span>
+      <div v-if="questionsLoading" style="text-align: center">
+        <a-spin />
+      </div>
 
-      <div class="step-content">
-        <a-form layout="vertical" :model="response">
-          <div v-for="(question, index) in questions">
-            <a-card v-if="currentStep === index">
-              <a-form-item
-                :label="question.text"
-                :name="question.name"
-                :rules="[{ required: question.required, message: 'This field is required!' }]"
-              >
-                <div v-if="question.description" class="question-description">
-                  <a-typography-text type="secondary">
-                    {{ question.description }}
-                  </a-typography-text>
-                </div>
+      <div v-else>
+        <h1>Survey questions</h1>
+        <span class="required-desc">required</span>
 
-                <div v-if="question.type === 'short_text'">
+        <div class="step-content">
+          <a-form
+            layout="vertical"
+            ref="formRef"
+            :model="response"
+            @finish="submitResponse"
+            @finishFailed="submitFailed"
+          >
+            <div v-for="(question, index) in questions">
+              <a-card v-if="currentStep === index">
+                <a-form-item
+                  :label="question.text"
+                  :name="question.name"
+                  :rules="[{ required: question.required, message: 'This field is required!' }]"
+                >
+                  <div v-if="question.description" class="question-description">
+                    <a-typography-text type="secondary">
+                      {{ question.description }}
+                    </a-typography-text>
+                  </div>
+
                   <a-input
-                    v-if="question.name === 'full_name'"
+                    v-if="question.type === 'short_text'"
+                    type="text"
                     v-model:value="response.full_name"
                   />
 
                   <a-input
-                    v-else-if="question.name === 'email_address'"
+                    v-else-if="question.type === 'email'"
+                    type="email"
                     v-model:value="response.email_address"
                   />
-                </div>
 
-                <div v-else-if="question.type === 'long_text'">
-                  <a-textarea v-model:value="response.description" />
-                </div>
+                  <div v-else-if="question.type === 'long_text'">
+                    <a-textarea v-model:value="response.description" />
+                  </div>
 
-                <div v-else-if="question.type === 'single_choice'">
-                  <a-radio-group v-model:value="response.gender">
-                    <a-radio
-                      v-for="option in question.options"
-                      :value="option.value"
-                      :name="option.label"
+                  <div v-else-if="question.type === 'single_choice'">
+                    <a-radio-group v-model:value="response.gender">
+                      <a-radio
+                        v-for="option in question.options"
+                        :value="option.value"
+                        :name="option.label"
+                      >
+                        {{ option.label }}
+                      </a-radio>
+                    </a-radio-group>
+                  </div>
+
+                  <div v-else-if="question.type === 'multiple_choice'">
+                    <a-checkbox-group v-model:value="response.programming_stack">
+                      <a-checkbox
+                        v-for="option in question.options"
+                        :value="option.value"
+                        :name="option.label"
+                      >
+                        {{ option.label }}
+                      </a-checkbox>
+                    </a-checkbox-group>
+                  </div>
+
+                  <div v-else-if="question.type === 'file'">
+                    <a-upload
+                      multiple
+                      accept=".pdf"
+                      v-model:file-list="response.certificates"
+                      :name="question.name"
+                      :before-upload="uploadCertificates"
+                      @remove="deleteCertificate"
                     >
-                      {{ option.label }}
-                    </a-radio>
-                  </a-radio-group>
-                </div>
+                      <a-button>
+                        <upload-outlined></upload-outlined>
+                        Click to Upload
+                      </a-button>
+                    </a-upload>
+                    <!-- <input multiple type="file" accept=".pdf" :name="question.name"> -->
+                  </div>
+                </a-form-item>
+              </a-card>
+            </div>
 
-                <div v-else-if="question.type === 'multiple_choice'">
-                  <a-checkbox-group v-model:value="response.programming_stack">
-                    <a-checkbox
-                      v-for="option in question.options"
-                      :value="option.value"
-                      :name="option.label"
-                    >
-                      {{ option.label }}
-                    </a-checkbox>
-                  </a-checkbox-group>
-                </div>
+            <div v-if="currentStep === questions.length">
+              <a-typography-title :level="3">Response</a-typography-title>
 
-                <div v-else-if="question.type === 'file'">
-                  <a-upload
-                    v-model:file-list="response.certificates"
-                    :name="question.name"
-                    @change="handleChange"
-                  >
-                    <a-button>
-                      <upload-outlined></upload-outlined>
-                      Click to Upload
-                    </a-button>
-                  </a-upload>
-                </div>
-              </a-form-item>
-            </a-card>
-          </div>
-        </a-form>
-      </div>
+              <a-typography-title :level="5">Full Name</a-typography-title>
+              <a-typography-text type="secondary">{{ response.full_name }}</a-typography-text>
 
-      <div class="step-actions">
-        <a-button v-if="currentStep > 0" @click="currentStep--">Previous</a-button>
+              <a-typography-title :level="5">Email Address</a-typography-title>
+              <a-typography-text type="secondary">{{ response.email_address }}</a-typography-text>
 
-        <a-button v-if="currentStep < questions.length - 1" type="primary" @click="currentStep++">
-          Next
-        </a-button>
+              <a-typography-title :level="5">Description</a-typography-title>
+              <a-typography-text type="secondary">{{ response.description }}</a-typography-text>
 
-        <a-button v-if="currentStep === questions.length - 1" type="primary">Submit</a-button>
+              <a-typography-title :level="5">Gender</a-typography-title>
+              <a-typography-text type="secondary">{{ response.gender }}</a-typography-text>
+
+              <a-typography-title :level="5">Programming Stack</a-typography-title>
+              <a-typography-text type="secondary">
+                {{ response.programming_stack.toString() }}
+              </a-typography-text>
+
+              <a-typography-title :level="5">Certificates</a-typography-title>
+              <div v-for="certificate in response.certificates">
+                <a-typography-text type="secondary">{{ certificate.name }}</a-typography-text>
+              </div>
+            </div>
+
+            <div class="step-actions">
+              <a-button v-if="currentStep > 0" @click="currentStep--">Previous</a-button>
+
+              <a-button v-if="currentStep < questions.length" type="primary" @click="validateInput">
+                Next
+              </a-button>
+
+              <a-button
+                v-if="currentStep === questions.length"
+                type="primary"
+                html-type="submit"
+                :loading="submitLoading"
+              >
+                Submit
+              </a-button>
+            </div>
+          </a-form>
+        </div>
       </div>
     </section>
 
@@ -136,18 +185,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
-import type { UploadChangeParam } from 'ant-design-vue'
-import { message } from 'ant-design-vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import type { FormInstance, UploadProps } from 'ant-design-vue'
 import { UploadOutlined } from '@ant-design/icons-vue'
 import { usePagination } from 'vue-request'
 import axios from 'axios'
-
-const navButtons = ref(['Questions', 'Responses'])
-const currentNavButton = ref('Questions')
-const currentStep = ref(0)
-
-const searchLoading = ref(false)
+import { useQuestionStore } from '@/stores/question'
+import { storeToRefs } from 'pinia'
+import { message } from 'ant-design-vue'
 
 interface Form {
   full_name: string
@@ -158,6 +203,20 @@ interface Form {
   certificates: Array<File>
 }
 
+const apiEndpoint = import.meta.env.VITE_API_ENDPOINT
+
+const questionsStore = useQuestionStore()
+const { questions } = storeToRefs(questionsStore)
+
+const navButtons = ref(['Questions', 'Responses'])
+const currentNavButton = ref('Questions')
+
+const questionsLoading = ref(false)
+const currentStep = ref(0)
+const formInputNames = ref<any[]>([])
+const submitLoading = ref(false)
+
+const formRef = ref<FormInstance>()
 const response = reactive<Form>({
   full_name: '',
   email_address: '',
@@ -167,145 +226,137 @@ const response = reactive<Form>({
   certificates: [],
 })
 
-const questions = ref([
-  {
-    id: 0,
-    name: 'full_name',
-    type: 'short_text',
-    text: 'What is your full name?',
-    required: true,
-    description: '[Surname] [First Name] [Other Names]',
-    options: null,
-  },
-  {
-    id: 1,
-    name: 'email_address',
-    type: 'short_text',
-    text: 'What is your email address?',
-    required: true,
-    description: null,
-    options: null,
-  },
-  {
-    id: 2,
-    name: 'description',
-    type: 'long_text',
-    text: 'Tell us a bit more about yourself',
-    required: true,
-    description: null,
-    options: null,
-  },
-  {
-    id: 3,
-    name: 'gender',
-    type: 'single_choice',
-    text: 'What is your gender?',
-    required: true,
-    description: null,
-    options: [
-      {
-        id: 0,
-        label: 'Male',
-        value: 'MALE',
-      },
-      {
-        id: 1,
-        label: 'Female',
-        value: 'FEMALE',
-      },
-      {
-        id: 2,
-        label: 'Other',
-        value: 'OTHER',
-      },
-    ],
-  },
-  {
-    id: 4,
-    name: 'programming_stack',
-    type: 'multiple_choice',
-    text: 'What programming stack are you familiar with?',
-    required: true,
-    description: 'You can select multiple',
-    options: [
-      {
-        id: 3,
-        label: 'React JS',
-        value: 'REACT',
-      },
-      {
-        id: 4,
-        label: 'Angular JS',
-        value: 'ANGULAR',
-      },
-      {
-        id: 5,
-        label: 'Vue JS',
-        value: 'VUE',
-      },
-      {
-        id: 6,
-        label: 'SQL',
-        value: 'SQL',
-      },
-      {
-        id: 7,
-        label: 'Postgres',
-        value: 'POSTGRES',
-      },
-      {
-        id: 8,
-        label: 'MySQL',
-        value: 'MYSQL',
-      },
-      {
-        id: 9,
-        label: 'Microsoft SQL Server',
-        value: 'MSSQL',
-      },
-      {
-        id: 10,
-        label: 'Java',
-        value: 'JAVA',
-      },
-      {
-        id: 11,
-        label: 'PHP',
-        value: 'PHP',
-      },
-      {
-        id: 12,
-        label: 'Go',
-        value: 'GO',
-      },
-      {
-        id: 13,
-        label: 'Rust',
-        value: 'RUST',
-      },
-    ],
-  },
-  {
-    id: 5,
-    name: 'certificates',
-    type: 'file',
-    text: 'Upload any of your certificates?',
-    required: true,
-    description: 'You can upload multiple (.pdf)',
-    options: null,
-  },
-])
+watch(questions, (newVal: any) => {
+  formInputNames.value = Array.from(newVal).map((question: any) => question.name)
+})
 
-const handleChange = (info: UploadChangeParam) => {
-  if (info.file.status !== 'uploading') {
-    console.log(info.file, info.fileList)
-  }
-  if (info.file.status === 'done') {
-    message.success(`${info.file.name} file uploaded successfully`)
-  } else if (info.file.status === 'error') {
-    message.error(`${info.file.name} file upload failed.`)
+/**
+ * Loads the questions and responses from the API and updates the store
+ */
+onMounted(async () => {
+  if (questions.value.length === 0) {
+    questionsLoading.value = true
+
+    const res = await questionsStore.getQuestions()
+
+    if (res.status === 200) {
+      // Sort the questions based on the ID
+      const sortedQuestions = res.questions.sort((q1: any, q2: any) => q1.id - q2.id)
+
+      // Update the questions store state
+      questionsStore.$patch({
+        questions: sortedQuestions,
+      })
+    } else {
+      console.log(res)
+    }
+
+    questionsLoading.value = false
+  } else return
+})
+
+/**
+ * Validates the form input before moving to the next question
+ */
+async function validateInput(): Promise<any> {
+  try {
+    const fieldName = formInputNames.value[currentStep.value]
+
+    await formRef.value?.validateFields([fieldName])
+
+    currentStep.value++
+  } catch (errorInfo: any) {
+    console.log('Error:', errorInfo.errorFields[0].name[0], 'is required!')
   }
 }
+
+/**
+ * Updates the certificates property in the form response object
+ * @param file file object
+ * @param fileList file list
+ * @returns false to prevent the upload component from saving the uploaded file to a server
+ */
+const uploadCertificates: UploadProps['beforeUpload'] = (file, fileList) => {
+  response.certificates = fileList
+
+  return false
+}
+
+/**
+ * Handles the deletion of an uploaded file
+ * @param file file object to delete
+ */
+const deleteCertificate: UploadProps['onRemove'] = (file: any) => {
+  const index = response.certificates.indexOf(file)
+  const newFileList = response.certificates.slice()
+
+  newFileList.splice(index, 1)
+  response.certificates = newFileList
+}
+
+/**
+ * Submits the form data to the API for uploading
+ */
+function submitResponse() {
+  submitLoading.value = true
+
+  let certificates: Array<File> = []
+
+  response.certificates.forEach((cert: any) => certificates.push(cert.originFileObj))
+
+  const responseObj = {
+    full_name: response.full_name,
+    email_address: response.email_address,
+    description: response.description,
+    gender: response.gender,
+    programming_stack: response.programming_stack.toString(),
+    certificates: certificates,
+  }
+
+  axios
+    .put(`${apiEndpoint}/questions/responses`, responseObj, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    .then((res) => {
+      message.success('Your response has been saved!')
+
+      const userResponse = res.data.response
+
+      console.log(userResponse)
+    })
+    .catch((error) => {
+      message.error('Something went wrong! Please try again')
+
+      console.log(error)
+    })
+    .finally(() => {
+      submitLoading.value = false
+
+      // Reset form
+      response.full_name = ''
+      response.email_address = ''
+      response.description = ''
+      response.gender = ''
+      response.programming_stack = []
+      response.certificates = []
+
+      currentStep.value = 0
+    })
+}
+
+/**
+ * Checks if the form is validated
+ * @param error form errors found
+ */
+function submitFailed(error: any): void {
+  console.log('Failed:', error)
+}
+
+// Response code
+
+const searchLoading = ref(false)
 
 const columns = [
   {
@@ -386,7 +437,8 @@ section {
   padding-top: 20px;
 }
 
-.step-content {
+.step-content,
+.step-actions {
   margin: 20px 0;
 }
 
@@ -397,5 +449,11 @@ section {
 .step-actions {
   display: flex;
   justify-content: space-between;
+}
+
+.required-desc::before {
+  content: '*';
+  color: red;
+  margin-right: 4px;
 }
 </style>
